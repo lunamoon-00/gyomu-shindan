@@ -80,6 +80,18 @@ export default function DiagnosisPage() {
     try {
       const data = await submitDiagnosis(formData);
       setResult(data);
+      // モック時のみDB保存（本番API時は /api/diagnosis 内で保存済み）
+      if (data.status === "success" && process.env.NEXT_PUBLIC_USE_MOCK !== "false") {
+        void fetch("/api/diagnosis/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            formData,
+            apiResponse: data,
+            source: "mock",
+          }),
+        });
+      }
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "通信エラーが発生しました。もう一度お試しください。";

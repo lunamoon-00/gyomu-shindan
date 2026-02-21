@@ -1,10 +1,10 @@
 /**
- * 診断API（GASへのプロキシ）
+ * 診断API（GASへのプロキシ + オプションで Supabase に保存）
  *
  * 【拡張ポイント】
  * - GAS API: getGasUrl() でエンドポイント切り替え
  * - 認証: リクエストヘッダー検証を追加
- * - DB保存: ここで受け取った body をDBに書き込み
+ * - DB保存: 成功時、SUPABASE_* が設定されていれば diagnoses に 1 件 insert
  * - PDF/スライド: GAS側で生成し、レスポンスの slidesUrl で返却
  */
 import { NextRequest, NextResponse } from "next/server";
@@ -14,6 +14,9 @@ import {
   logDiagnosisSuccess,
   logGasHttpError,
 } from "@/lib/logger";
+import { getSupabase } from "@/lib/supabase-server";
+import { formAndResponseToRow } from "@/lib/diagnosis-to-row";
+import type { FormData, ApiResponse } from "@/themes/efficiency/types";
 
 export async function POST(request: NextRequest) {
   const gasUrl = getGasUrl();
@@ -88,6 +91,29 @@ export async function POST(request: NextRequest) {
         },
         { status: 502 }
       );
+    }
+
+    // 成功時のみ Supabase に保存（環境変数が設定されている場合）
+    const apiResponse = data as ApiResponse;
+    if (
+      apiResponse?.status === "success" &&
+      body &&
+      typeof body === "object" &&
+      "company_name" in body &&
+      "task1_name" in body
+    ) {
+      const supabase = getSupabase();
+      if (supabase) {
+        try {
+          const row = formAndResponseToRow(body as FormData, apiResponse, "web");
+          const { error } = await supabase.from("diagnoses").insert(row);
+          if (error) {
+            console.error("[diagnosis] DB insert failed:", error.message);
+          }
+        } catch (err) {
+          console.error("[diagnosis] DB save error:", err);
+        }
+      }
     }
 
     logDiagnosisSuccess();
