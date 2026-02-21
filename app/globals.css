@@ -3,9 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --foreground: #1f2937;
-  --background-start: #f8fafc;
+  --foreground: #102a43;
+  --background-start: #faf8fc;
+  --background-mid: #f3eff8;
   --background-end: #ffffff;
+  --accent-navy: #243b53;
+  --accent-lavender: #e8e0f0;
 }
 
 body {
@@ -13,8 +16,9 @@ body {
   background: linear-gradient(
     180deg,
     var(--background-start) 0%,
-    var(--background-end) 50%,
-    #f1f5f9 100%
+    var(--background-mid) 30%,
+    var(--background-end) 70%,
+    #f8f7fa 100%
   );
   min-height: 100vh;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Building2,
@@ -15,72 +15,22 @@ import {
   Sparkles,
   ChevronRight,
   Loader2,
-  TrendingDown,
-  Mail,
 } from "lucide-react";
+import type { FormData, ApiResponse } from "@/lib/types";
+import {
+  HOURLY_COST_OPTIONS,
+  IT_TOOLS_OPTIONS,
+  BUDGET_OPTIONS,
+} from "@/lib/constants";
+import { validateForm } from "@/lib/validation";
+import { apiResponseToResultData } from "@/lib/validation";
+import { submitDiagnosis } from "@/lib/submitDiagnosis";
+import { StepProgress } from "@/components/diagnosis/StepProgress";
+import { ResultScreen } from "@/components/diagnosis/ResultScreen";
 
-// APIルート経由でGASを呼ぶ（CORS回避）
-const API_ENDPOINT = "/api/diagnosis";
-
-// 相談メールの送信先（ご自身のメールアドレスに変更してください）
 const CONSULT_EMAIL = "b8szsuut4n@yahoo.co.jp";
 
-// 型定義
-interface FormData {
-  company_name: string;
-  contact_name: string;
-  backoffice_people: number;
-  hourly_cost: string;
-  it_tools: string[];
-  it_literacy: number;
-  team_cooperation: number;
-  budget_level: string;
-  task1_name: string;
-  task1_freq: number;
-  task1_time: number;
-  trouble_text: string;
-}
-
-interface ApiResponse {
-  status: "success" | "error";
-  slidesUrl?: string;
-  bottleneckTask?: string;
-  monthlySavedCost?: number;
-  message?: string;
-}
-
-// オプション定数
-const HOURLY_COST_OPTIONS = [
-  { value: "1200", label: "1,200円" },
-  { value: "1500", label: "1,500円" },
-  { value: "2000", label: "2,000円" },
-  { value: "2500", label: "2,500円" },
-  { value: "3000", label: "3,000円以上" },
-];
-
-const IT_TOOLS_OPTIONS = [
-  "Excel / Googleスプレッドシート",
-  "勤怠管理システム",
-  "経費精算システム",
-  "請求書作成ツール",
-  "Slack / Teams",
-  "業務管理ツール",
-  "その他 / 特になし",
-];
-
-const BUDGET_OPTIONS = [
-  { value: "low", label: "低（〜5万円/月）" },
-  { value: "medium", label: "中（5万〜15万円/月）" },
-  { value: "high", label: "高（15万円以上/月）" },
-];
-
-const RATING_LABELS = [
-  "ほとんど使えない",
-  "少し使える",
-  "普通",
-  "比較的得意",
-  "かなり得意",
-];
+const TOTAL_STEPS = 9;
 
 const initialFormData: FormData = {
   company_name: "",
@@ -105,7 +55,7 @@ export default function DiagnosisPage() {
   const [consultSent, setConsultSent] = useState(false);
   const [consultSending, setConsultSending] = useState(false);
   const [consultError, setConsultError] = useState<string | null>(null);
-  const [consultReplyEmail, setConsultReplyEmail] = useState("");
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const updateForm = useCallback(<K extends keyof FormData>(key: K, value: FormData[K]) => {
@@ -122,19 +72,22 @@ export default function DiagnosisPage() {
   };
 
   const handleSubmit = async () => {
+    const errors = validateForm(formData);
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      const firstKey = Object.keys(errors)[0];
+      const el = document.querySelector(`[data-field="${firstKey}"]`);
+      el?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+    setValidationErrors({});
     setIsLoading(true);
     setResult(null);
     setConsultSent(false);
     setConsultError(null);
-    setConsultReplyEmail("");
 
     try {
-      const res = await fetch(API_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      const data: ApiResponse = await res.json();
+      const data = await submitDiagnosis(formData);
       setResult(data);
     } catch (err) {
       setResult({
@@ -146,18 +99,7 @@ export default function DiagnosisPage() {
     }
   };
 
-  const handleConsult = async () => {
-    if (consultSent || consultSending) return;
-    const email = consultReplyEmail.trim();
-    if (!email) {
-      setConsultError("返信用のメールアドレスを入力してください。");
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setConsultError("有効なメールアドレスを入力してください。");
-      return;
-    }
-    if (!window.confirm("相談リクエストを送信しますか？\n担当者よりご連絡いたします。")) return;
+  const handleConsult = async (email: string) => {
     setConsultSending(true);
     setConsultError(null);
     try {
@@ -207,15 +149,22 @@ export default function DiagnosisPage() {
   return (
     <div className="min-h-screen pb-24">
       {/* ヘッダー */}
-      <header className="sticky top-0 z-40 backdrop-blur-md bg-white/80 border-b border-slate-200/80">
+      <header className="sticky top-0 z-40 backdrop-blur-md bg-white/90 border-b border-lavender-200/80">
         <div className="max-w-2xl mx-auto px-6 py-4">
-          <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-emerald-500" />
+          <h1 className="text-xl font-bold text-navy-800 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-lavender-500" />
             業務効率化診断
           </h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            約3分で、AIがあなたの業務改善ポイントを分析します
+          <p className="text-sm text-navy-500 mt-0.5">
+            約3分で、業務改善ポイントを分析します
           </p>
+          <div className="mt-4">
+            <StepProgress
+              currentStep={currentStep}
+              totalSteps={TOTAL_STEPS}
+              label={`Step ${currentStep + 1} / ${TOTAL_STEPS}`}
+            />
+          </div>
         </div>
       </header>
 
@@ -240,29 +189,43 @@ export default function DiagnosisPage() {
             </div>
           </div>
           <div className="space-y-4">
-            <div>
+            <div data-field="company_name">
               <label className="block text-sm font-medium text-slate-600 mb-2">
-                会社名
+                会社名 <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.company_name}
                 onChange={(e) => updateForm("company_name", e.target.value)}
                 placeholder="例：株式会社○○"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition"
+                className={`w-full px-4 py-3 rounded-xl border outline-none transition ${
+                  validationErrors.company_name
+                    ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                    : "border-slate-200 focus:border-navy-500 focus:ring-2 focus:ring-navy-500/20"
+                }`}
               />
+              {validationErrors.company_name && (
+                <p className="mt-1 text-sm text-red-500">{validationErrors.company_name}</p>
+              )}
             </div>
-            <div>
+            <div data-field="contact_name">
               <label className="block text-sm font-medium text-slate-600 mb-2">
-                担当者名
+                担当者名 <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.contact_name}
                 onChange={(e) => updateForm("contact_name", e.target.value)}
                 placeholder="例：山田 太郎"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition"
+                className={`w-full px-4 py-3 rounded-xl border outline-none transition ${
+                  validationErrors.contact_name
+                    ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                    : "border-slate-200 focus:border-navy-500 focus:ring-2 focus:ring-navy-500/20"
+                }`}
               />
+              {validationErrors.contact_name && (
+                <p className="mt-1 text-sm text-red-500">{validationErrors.contact_name}</p>
+              )}
             </div>
           </div>
           <NextButton onClick={scrollToNext} label="次へ" />
@@ -288,7 +251,10 @@ export default function DiagnosisPage() {
               <p className="text-sm text-slate-500">事務・バックオフィス担当人数</p>
             </div>
           </div>
-          <div>
+          <div data-field="backoffice_people">
+            <label className="block text-sm font-medium text-slate-600 mb-2">
+              担当人数 <span className="text-red-500">*</span>
+            </label>
             <input
               type="number"
               min={1}
@@ -298,8 +264,15 @@ export default function DiagnosisPage() {
                 updateForm("backoffice_people", parseInt(e.target.value) || 1)
               }
               placeholder="例：5"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition"
+              className={`w-full px-4 py-3 rounded-xl border outline-none transition ${
+                validationErrors.backoffice_people
+                  ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                  : "border-slate-200 focus:border-navy-500 focus:ring-2 focus:ring-navy-500/20"
+              }`}
             />
+            {validationErrors.backoffice_people && (
+              <p className="mt-1 text-sm text-red-500">{validationErrors.backoffice_people}</p>
+            )}
           </div>
           <NextButton onClick={scrollToNext} label="次へ" />
         </motion.div>
@@ -324,20 +297,29 @@ export default function DiagnosisPage() {
               <p className="text-sm text-slate-500">時給換算</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {HOURLY_COST_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => updateForm("hourly_cost", opt.value)}
-                className={`py-3 px-4 rounded-xl text-sm font-medium transition-all hover:scale-[1.02] active:scale-[0.98] ${
-                  formData.hourly_cost === opt.value
-                    ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+          <div data-field="hourly_cost">
+            <label className="block text-sm font-medium text-slate-600 mb-2">
+              想定人件費（時給換算） <span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {HOURLY_COST_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => updateForm("hourly_cost", opt.value)}
+                  className={`py-3 px-4 rounded-xl text-sm font-medium transition-all hover:scale-[1.02] active:scale-[0.98] ${
+                    formData.hourly_cost === opt.value
+                      ? "bg-navy-600 text-white shadow-lg shadow-navy-500/30"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {validationErrors.hourly_cost && (
+              <p className="mt-2 text-sm text-red-500">{validationErrors.hourly_cost}</p>
+            )}
           </div>
           <NextButton onClick={scrollToNext} label="次へ" />
         </motion.div>
@@ -482,20 +464,29 @@ export default function DiagnosisPage() {
               <p className="text-sm text-slate-500">月額目安</p>
             </div>
           </div>
-          <div className="space-y-3">
-            {BUDGET_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => updateForm("budget_level", opt.value)}
-                className={`w-full py-3.5 px-4 rounded-xl text-left font-medium transition-all hover:scale-[1.01] ${
-                  formData.budget_level === opt.value
-                    ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+          <div data-field="budget_level">
+            <label className="block text-sm font-medium text-slate-600 mb-2">
+              導入予算感 <span className="text-red-500">*</span>
+            </label>
+            <div className="space-y-3">
+              {BUDGET_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => updateForm("budget_level", opt.value)}
+                  className={`w-full py-3.5 px-4 rounded-xl text-left font-medium transition-all hover:scale-[1.01] ${
+                    formData.budget_level === opt.value
+                      ? "bg-navy-600 text-white shadow-lg shadow-navy-500/25"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {validationErrors.budget_level && (
+              <p className="mt-2 text-sm text-red-500">{validationErrors.budget_level}</p>
+            )}
           </div>
           <NextButton onClick={scrollToNext} label="次へ" />
         </motion.div>
@@ -521,22 +512,29 @@ export default function DiagnosisPage() {
             </div>
           </div>
           <div className="space-y-4">
-            <div>
+            <div data-field="task1_name">
               <label className="block text-sm font-medium text-slate-600 mb-2">
-                業務の名称
+                業務の名称 <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.task1_name}
                 onChange={(e) => updateForm("task1_name", e.target.value)}
                 placeholder="例：月次請求書作成"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition"
+                className={`w-full px-4 py-3 rounded-xl border outline-none transition ${
+                  validationErrors.task1_name
+                    ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                    : "border-slate-200 focus:border-navy-500 focus:ring-2 focus:ring-navy-500/20"
+                }`}
               />
+              {validationErrors.task1_name && (
+                <p className="mt-1 text-sm text-red-500">{validationErrors.task1_name}</p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              <div data-field="task1_freq">
                 <label className="block text-sm font-medium text-slate-600 mb-2">
-                  1週間あたりの実施回数
+                  1週間あたりの実施回数 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -546,12 +544,19 @@ export default function DiagnosisPage() {
                     updateForm("task1_freq", parseInt(e.target.value) || 0)
                   }
                   placeholder="例：4"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition"
+                  className={`w-full px-4 py-3 rounded-xl border outline-none transition ${
+                    validationErrors.task1_freq
+                      ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                      : "border-slate-200 focus:border-navy-500 focus:ring-2 focus:ring-navy-500/20"
+                  }`}
                 />
+                {validationErrors.task1_freq && (
+                  <p className="mt-1 text-sm text-red-500">{validationErrors.task1_freq}</p>
+                )}
               </div>
-              <div>
+              <div data-field="task1_time">
                 <label className="block text-sm font-medium text-slate-600 mb-2">
-                  1回あたりの作業時間（分）
+                  1回あたりの作業時間（分） <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -561,8 +566,15 @@ export default function DiagnosisPage() {
                     updateForm("task1_time", parseInt(e.target.value) || 0)
                   }
                   placeholder="例：60"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition"
+                  className={`w-full px-4 py-3 rounded-xl border outline-none transition ${
+                    validationErrors.task1_time
+                      ? "border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                      : "border-slate-200 focus:border-navy-500 focus:ring-2 focus:ring-navy-500/20"
+                  }`}
                 />
+                {validationErrors.task1_time && (
+                  <p className="mt-1 text-sm text-red-500">{validationErrors.task1_time}</p>
+                )}
               </div>
             </div>
           </div>
@@ -613,7 +625,7 @@ export default function DiagnosisPage() {
           <button
             onClick={handleSubmit}
             disabled={!isSubmitEnabled || isLoading}
-            className="relative overflow-hidden group w-full max-w-md py-5 px-8 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-lg shadow-soft-lg shadow-emerald-500/30 hover:shadow-glow hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-3"
+            className="relative overflow-hidden group w-full max-w-md py-5 px-8 rounded-2xl bg-gradient-to-r from-navy-600 to-navy-700 text-white font-bold text-lg shadow-soft-lg shadow-navy-500/30 hover:shadow-glow hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-3"
           >
             <span className="absolute inset-0 shimmer rounded-2xl opacity-40 pointer-events-none" />
             {isLoading ? (
@@ -643,137 +655,59 @@ export default function DiagnosisPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm"
-            onClick={() => setResult(null)}
+            className="fixed inset-0 z-50 overflow-y-auto"
           >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg bg-white rounded-2xl shadow-soft-lg p-8 border border-slate-100"
+            <div
+              className="min-h-full bg-navy-900/50 backdrop-blur-sm flex items-start justify-center p-4"
+              onClick={() => setResult(null)}
             >
-              {result.status === "success" ? (
-                <>
-                  <div className="text-center mb-6">
-                    <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-100 flex items-center justify-center mb-4">
-                      <TrendingDown className="w-8 h-8 text-emerald-600" />
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-800">
-                      診断結果
-                    </h3>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-2xl my-8"
+              >
+                {result.status === "success" ? (
+                  <div className="bg-lavender-50/95 rounded-2xl shadow-soft-lg p-6 border border-lavender-200">
+                    <ResultScreen
+                      data={apiResponseToResultData(result)}
+                      formCompany={formData.company_name}
+                      formContact={formData.contact_name}
+                      onConsult={handleConsult}
+                      consultSending={consultSending}
+                      consultSent={consultSent}
+                      consultError={consultError}
+                      onClose={() => setResult(null)}
+                    />
                   </div>
-
-                  {result.bottleneckTask && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                      className="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-100"
-                    >
-                        <p className="text-sm font-medium text-slate-600 mb-2">
-                          改善が必要な業務
-                        </p>
-                      <p className="text-lg font-semibold text-slate-800">
-                        {result.bottleneckTask}
-                      </p>
-                    </motion.div>
-                  )}
-
-                  {result.monthlySavedCost !== undefined && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 }}
-                      className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-100"
-                    >
-                        <p className="text-sm font-medium text-emerald-700 mb-1">
-                          月あたりの削減見込み
-                        </p>
-                      <p className="text-2xl font-bold text-emerald-600">
-                        <motion.span
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.5 }}
-                        >
-                          {result.monthlySavedCost.toLocaleString()}円
-                        </motion.span>
-                        <span className="text-base font-normal text-emerald-600/80">
-                          /月
-                        </span>
-                      </p>
-                    </motion.div>
-                  )}
-
-                  {!consultSent && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.35 }}
-                      className="mb-4"
-                    >
-                      <label className="block text-sm font-medium text-slate-600 mb-2">
-                        返信用メールアドレス（担当者からのご連絡先）
-                      </label>
-                      <input
-                        type="email"
-                        value={consultReplyEmail}
-                        onChange={(e) => setConsultReplyEmail(e.target.value)}
-                        placeholder="example@company.co.jp"
-                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition"
-                      />
-                    </motion.div>
-                  )}
-
-                  <motion.button
-                    type="button"
-                    onClick={handleConsult}
-                    disabled={consultSending || consultSent}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="flex items-center justify-center gap-2 w-full py-4 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-lg shadow-emerald-500/30 hover:shadow-glow hover:scale-[1.02] transition-all mb-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    {consultSending ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        送信中...
-                      </>
-                    ) : consultSent ? (
-                      <>✓ 送信しました。担当者よりご連絡いたします。</>
-                    ) : (
-                      <>
-                        <Mail className="w-5 h-5" />
-                        相談する
-                      </>
-                    )}
-                  </motion.button>
-                  {consultError && (
-                    <p className="text-sm text-red-500 mb-4">{consultError}</p>
-                  )}
-
-                  <button
-                    onClick={() => setResult(null)}
-                    className="mt-2 w-full py-3 text-slate-500 hover:text-slate-700 text-sm"
-                  >
-                    閉じる
-                  </button>
-                </>
-              ) : (
-                <div className="text-center">
-                  <p className="text-red-600 mb-4">
-                    {result.message || "エラーが発生しました"}
-                  </p>
-                  <button
-                    onClick={() => setResult(null)}
-                    className="py-2 px-6 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200"
-                  >
-                    閉じる
-                  </button>
-                </div>
-              )}
-            </motion.div>
+                ) : (
+                  <div className="bg-white rounded-2xl shadow-soft-lg p-8 border border-lavender-200 text-center">
+                    <p className="text-red-600 mb-4">
+                      {result.message || "エラーが発生しました"}
+                    </p>
+                    <p className="text-sm text-navy-500 mb-6">
+                      お手数ですが、もう一度お試しください。
+                    </p>
+                    <div className="flex gap-3 justify-center">
+                      <button
+                        onClick={() => setResult(null)}
+                        className="py-2 px-6 rounded-xl border border-navy-200 text-navy-700 hover:bg-navy-50"
+                      >
+                        閉じる
+                      </button>
+                      <button
+                        onClick={handleSubmit}
+                        className="py-2 px-6 rounded-xl bg-navy-600 text-white hover:bg-navy-700"
+                      >
+                        もう一度送信する
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
