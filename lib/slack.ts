@@ -17,6 +17,7 @@ export async function notifySlackDiagnosis(
   if (!webhookUrl) return;
   const company = form.company_name || "-";
   const contact = form.contact_name || "-";
+  console.log("[slack] Sending notification for:", company, contact);
   const bottleneck = api.bottleneckTask || "-";
   const saved = formatNum(api.monthlySavedCost);
   const text = `【新規診断】${company} / ${contact}\nボトルネック: ${bottleneck}\n月間削減効果: ${saved}円`;
