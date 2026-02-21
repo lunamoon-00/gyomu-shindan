@@ -35,7 +35,11 @@ export function ResultKpiCards({ data }: ResultKpiCardsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="space-y-4">
+      <p className="text-xs text-navy-500">
+        ※試算値・目安です。実際の数値は状況により異なります。
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       {cards.map((card) => (
         <div
           key={card.label}
@@ -51,6 +55,7 @@ export function ResultKpiCards({ data }: ResultKpiCardsProps) {
           )}
         </div>
       ))}
+      </div>
     </div>
   );
 }

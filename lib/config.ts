@@ -10,23 +10,18 @@
 
 /**
  * GAS Web App URL（サーバー専用・APIルートで使用）
- * GAS_URL 未設定時は従来のURLを使用（後方互換）。.env.local で上書き推奨。
+ * .env.local で GAS_URL を設定してください。未設定時は空文字を返します。
  */
 export function getGasUrl(): string {
-  const fromEnv = process.env.GAS_URL?.trim();
-  if (fromEnv) return fromEnv;
-  // 後方互換: .env 未作成時も動作させる
-  return "https://script.google.com/macros/s/AKfycbxbNcKyak_Pq5VxTJfJo0A_dn60AdaG6c5mlPYxhbFr83HA2PIrsVluYhtn5xFdHM89yg/exec";
+  return process.env.GAS_URL?.trim() ?? "";
 }
 
 /**
  * 相談リクエストの送信先メール（クライアントでも使用）
- * 未設定時は従来のアドレスを使用（後方互換）
+ * .env.local で NEXT_PUBLIC_CONSULT_EMAIL を設定してください。未設定時は空文字を返します。
  */
 export function getConsultEmail(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_CONSULT_EMAIL?.trim();
-  if (fromEnv) return fromEnv;
-  return "b8szsuut4n@yahoo.co.jp";
+  return process.env.NEXT_PUBLIC_CONSULT_EMAIL?.trim() ?? "";
 }
 
 /**

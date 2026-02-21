@@ -21,11 +21,14 @@ export function ConsultationForm({
   error,
 }: ConsultationFormProps) {
   const [email, setEmail] = useState("");
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLocalError(null);
     if (!email.trim() || isSending || isSent) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setLocalError("正しいメールアドレスを入力してください。");
       return;
     }
     if (!window.confirm("相談リクエストを送信しますか？")) return;
@@ -52,7 +55,9 @@ export function ConsultationForm({
         placeholder="example@company.co.jp"
         className="w-full px-4 py-3 rounded-xl border border-lavender-300 focus:border-navy-500 focus:ring-2 focus:ring-navy-500/20 outline-none"
       />
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {(error || localError) && (
+        <p className="text-sm text-red-600">{error ?? localError}</p>
+      )}
       <button
         type="submit"
         disabled={isSending || !email.trim()}

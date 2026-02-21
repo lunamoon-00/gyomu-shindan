@@ -22,6 +22,7 @@ export function RoiCards({ data }: RoiCardsProps) {
       <p className="text-sm font-medium text-navy-600">
         削減見込み（円/月）
       </p>
+      <p className="text-xs text-navy-500">※試算値です</p>
       <div className="grid grid-cols-3 gap-3">
         {items.map((item) => (
           <div
