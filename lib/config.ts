@@ -25,9 +25,10 @@ export function getConsultEmail(): string {
 
 /**
  * 診断APIをモックにするか
- * true: フォーム送信時にダミーレスポンスを返す（GAS不要）
- * false: 実際のAPIを呼ぶ
+ * - 未設定 or "true": モック（GAS不要で動作）
+ * - "false": 実際のAPI（GAS_URL必須）
+ * デフォルトはモックにし、Vercel 等で env 未設定でも動くようにする
  */
 export function getUseMock(): boolean {
-  return process.env.NEXT_PUBLIC_USE_MOCK === "true";
+  return process.env.NEXT_PUBLIC_USE_MOCK !== "false";
 }

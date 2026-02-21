@@ -32,7 +32,7 @@ npm run dev
 2. 「無料で診断結果を見る」をクリック
 3. 結果が表示されればOK
 
-※ `.env.local` で `NEXT_PUBLIC_USE_MOCK=true` にしているため、GAS がなくても動作します。
+※ `NEXT_PUBLIC_USE_MOCK` が未設定または `true` のときはモックで動くため、GAS がなくても動作します。
 
 ---
 
@@ -56,11 +56,22 @@ npm run dev
 
 ---
 
+## Vercel にデプロイした場合
+
+- **環境変数なし** でもそのまま動作します（モックモードがデフォルト）
+- 診断結果・相談フォームまで試せます（相談はメール未設定だと「設定が完了していません」と表示）
+- GAS と連携したいときだけ、Vercel の「Settings → Environment Variables」で以下を追加：
+  - `GAS_URL` … GAS Web App の URL
+  - `NEXT_PUBLIC_CONSULT_EMAIL` … 相談メール先
+  - `NEXT_PUBLIC_USE_MOCK` … `false`（本番API利用時）
+
+---
+
 ## 困ったとき
 
 | 症状 | 対処 |
 |------|------|
 | `npm run dev` がエラー | 先に `npm install` を実行 |
 | 別のフォルダで実行してエラー | `cd Desktop\sindan` で移動してから再実行 |
-| 診断送信でエラー | `.env.local` の `NEXT_PUBLIC_USE_MOCK=true` を確認 |
+| 診断送信でエラー | `NEXT_PUBLIC_USE_MOCK` を未設定か `true` にするとモックで動作 |
 | 相談で「設定が完了していません」 | `.env.local` に `NEXT_PUBLIC_CONSULT_EMAIL=あなたのメール` を追加 |
