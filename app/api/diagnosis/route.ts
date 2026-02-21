@@ -16,6 +16,8 @@ import {
 } from "@/lib/logger";
 import { getSupabase } from "@/lib/supabase-server";
 import { formAndResponseToRow } from "@/lib/diagnosis-to-row";
+import { notifySlackDiagnosis } from "@/lib/slack";
+import { getSlackWebhookUrl } from "@/lib/config";
 import type { FormData, ApiResponse } from "@/themes/efficiency/types";
 
 export async function POST(request: NextRequest) {
@@ -113,6 +115,10 @@ export async function POST(request: NextRequest) {
         } catch (err) {
           console.error("[diagnosis] DB save error:", err);
         }
+      }
+      const slackUrl = getSlackWebhookUrl();
+      if (slackUrl) {
+        void notifySlackDiagnosis(body as FormData, apiResponse, slackUrl);
       }
     }
 

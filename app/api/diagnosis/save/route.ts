@@ -6,6 +6,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase-server";
 import { formAndResponseToRow } from "@/lib/diagnosis-to-row";
+import { notifySlackDiagnosis } from "@/lib/slack";
+import { getSlackWebhookUrl } from "@/lib/config";
 import type { FormData, ApiResponse } from "@/themes/efficiency/types";
 
 export async function POST(request: NextRequest) {
@@ -60,6 +62,10 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error("[diagnosis/save] insert failed:", error.message);
       return NextResponse.json({ status: "ok", saved: false }, { status: 200 });
+    }
+    const slackUrl = getSlackWebhookUrl();
+    if (slackUrl) {
+      void notifySlackDiagnosis(form, apiResponse as ApiResponse, slackUrl);
     }
     return NextResponse.json({ status: "ok", saved: true }, { status: 200 });
   } catch (err) {
