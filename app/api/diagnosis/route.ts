@@ -1,19 +1,71 @@
+/**
+ * 診断API（GASへのプロキシ）
+ *
+ * 【拡張ポイント】
+ * - GAS API: getGasUrl() でエンドポイント切り替え
+ * - 認証: リクエストヘッダー検証を追加
+ * - DB保存: ここで受け取った body をDBに書き込み
+ * - PDF/スライド: GAS側で生成し、レスポンスの slidesUrl で返却
+ */
 import { NextRequest, NextResponse } from "next/server";
-
-const GAS_URL =
-  "https://script.google.com/macros/s/AKfycbxbNcKyak_Pq5VxTJfJo0A_dn60AdaG6c5mlPYxhbFr83HA2PIrsVluYhtn5xFdHM89yg/exec";
+import { getGasUrl } from "@/lib/config";
+import {
+  logDiagnosisError,
+  logDiagnosisSuccess,
+  logGasHttpError,
+} from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
+  const gasUrl = getGasUrl();
+  if (!gasUrl) {
+    return NextResponse.json(
+      {
+        status: "error",
+        message:
+          "サーバー設定エラー。GAS_URLが未設定です。.env.local を参照してください。",
+      },
+      { status: 503 }
+    );
+  }
+
+  let body: unknown;
   try {
-    const body = await request.json();
-    const res = await fetch(GAS_URL, {
+    body = await request.json();
+  } catch (err) {
+    logDiagnosisError("request_parse", err);
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "リクエストデータの解析に失敗しました。",
+      },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const res = await fetch(gasUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     const text = await res.text();
+
+    // HTTPエラー時（4xx/5xx）
+    if (!res.ok) {
+      logGasHttpError(res.status, "diagnosis");
+      return NextResponse.json(
+        {
+          status: "error",
+          message:
+            "診断サーバーに接続できませんでした。しばらくしてからお試しください。",
+        },
+        { status: 502 }
+      );
+    }
+
     // GASがHTML（エラーページ）を返した場合はJSONとして解析できない
     if (!text.trim().startsWith("{") && !text.trim().startsWith("[")) {
+      logDiagnosisError("gas_response", new Error("Response is not JSON"));
       return NextResponse.json(
         {
           status: "error",
@@ -23,10 +75,25 @@ export async function POST(request: NextRequest) {
         { status: 502 }
       );
     }
-    const data = JSON.parse(text);
+
+    let data: unknown;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      logDiagnosisError("json_parse", new Error("Invalid JSON from GAS"));
+      return NextResponse.json(
+        {
+          status: "error",
+          message: "診断サーバーからの応答形式が正しくありません。",
+        },
+        { status: 502 }
+      );
+    }
+
+    logDiagnosisSuccess();
     return NextResponse.json(data);
   } catch (err) {
-    console.error("Diagnosis API error:", err);
+    logDiagnosisError("fetch", err);
     return NextResponse.json(
       {
         status: "error",

@@ -1,49 +1,12 @@
 /**
- * フォームデータ型
+ * 型定義のエントリ
+ * テーマ集約のため、業務効率化テーマから re-export
+ *
+ * 【再利用時】
+ * 別テーマを使う場合は、ここで import 元を themes/<テーマ名> に差し替え
  */
-export interface FormData {
-  company_name: string;
-  contact_name: string;
-  backoffice_people: number;
-  hourly_cost: string;
-  it_tools: string[];
-  it_literacy: number;
-  team_cooperation: number;
-  budget_level: string;
-  task1_name: string;
-  task1_freq: number;
-  task1_time: number;
-  trouble_text: string;
-}
-
-/**
- * APIレスポンス型（既存GAS互換）
- */
-export interface ApiResponse {
-  status: "success" | "error";
-  slidesUrl?: string;
-  bottleneckTask?: string;
-  monthlySavedCost?: number;
-  message?: string;
-}
-
-/**
- * 診断結果画面用の拡張型（ダミー or GAS将来対応）
- */
-export interface ResultData {
-  leadRank: "S" | "A" | "B";
-  bottleneckTop: string;
-  totalWeeklyHours: number;
-  monthlyLaborCost: number;
-  difficultyScore: number;
-  roi: {
-    conservative: number;
-    base: number;
-    aggressive: number;
-  };
-  roadmap: {
-    phase1: string;
-    phase2: string;
-    phase3: string;
-  };
-}
+export type {
+  FormData,
+  ApiResponse,
+  ResultData,
+} from "@/themes/efficiency";

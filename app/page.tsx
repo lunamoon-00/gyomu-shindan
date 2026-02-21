@@ -18,34 +18,22 @@ import {
 } from "lucide-react";
 import type { FormData, ApiResponse } from "@/lib/types";
 import {
+  THEME_META,
+  INITIAL_FORM_DATA,
   HOURLY_COST_OPTIONS,
   IT_TOOLS_OPTIONS,
   BUDGET_OPTIONS,
-} from "@/lib/constants";
-import { validateForm } from "@/lib/validation";
-import { apiResponseToResultData } from "@/lib/validation";
+  validateForm,
+  apiResponseToResultData,
+} from "@/themes/efficiency";
 import { submitDiagnosis } from "@/lib/submitDiagnosis";
+import { getConsultEmail } from "@/lib/config";
 import { StepProgress } from "@/components/diagnosis/StepProgress";
 import { ResultScreen } from "@/components/diagnosis/ResultScreen";
 
-const CONSULT_EMAIL = "b8szsuut4n@yahoo.co.jp";
-
-const TOTAL_STEPS = 9;
-
-const initialFormData: FormData = {
-  company_name: "",
-  contact_name: "",
-  backoffice_people: 1,
-  hourly_cost: "",
-  it_tools: [],
-  it_literacy: 0,
-  team_cooperation: 0,
-  budget_level: "",
-  task1_name: "",
-  task1_freq: 0,
-  task1_time: 0,
-  trouble_text: "",
-};
+/** ステップ数・初期値はテーマから取得（再利用時は差し替え） */
+const { totalSteps: TOTAL_STEPS } = THEME_META;
+const initialFormData = INITIAL_FORM_DATA;
 
 export default function DiagnosisPage() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
@@ -72,6 +60,9 @@ export default function DiagnosisPage() {
   };
 
   const handleSubmit = async () => {
+    // 二重送信防止
+    if (isLoading) return;
+
     const errors = validateForm(formData);
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
@@ -90,16 +81,22 @@ export default function DiagnosisPage() {
       const data = await submitDiagnosis(formData);
       setResult(data);
     } catch (err) {
-      setResult({
-        status: "error",
-        message: "通信エラーが発生しました。もう一度お試しください。",
-      });
+      const msg =
+        err instanceof Error ? err.message : "通信エラーが発生しました。もう一度お試しください。";
+      setResult({ status: "error", message: msg });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleConsult = async (email: string) => {
+    const consultEmail = getConsultEmail();
+    if (!consultEmail) {
+      setConsultError("相談機能の設定が完了していません。");
+      return;
+    }
+    if (consultSending) return; // 二重送信防止
+
     setConsultSending(true);
     setConsultError(null);
     try {
@@ -107,22 +104,35 @@ export default function DiagnosisPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          consultEmail: CONSULT_EMAIL,
+          consultEmail,
           replyEmail: email,
           company_name: formData.company_name,
           contact_name: formData.contact_name,
-          bottleneckTask: result?.bottleneckTask,
-          monthlySavedCost: result?.monthlySavedCost,
+          bottleneckTask: result?.status === "success" ? result.bottleneckTask : undefined,
+          monthlySavedCost: result?.status === "success" ? result.monthlySavedCost : undefined,
         }),
       });
-      const data = await res.json();
+
+      let data: { status?: string; message?: string };
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        setConsultError("送信サーバーからの応答形式が正しくありません。");
+        return;
+      }
+
+      if (!res.ok) {
+        setConsultError(data.message || "送信に失敗しました。しばらくしてからお試しください。");
+        return;
+      }
       if (data.status === "success") {
         setConsultSent(true);
       } else {
         setConsultError(data.message || "送信に失敗しました。");
       }
     } catch {
-      setConsultError("送信に失敗しました。");
+      setConsultError("送信に失敗しました。ネットワークを確認してもう一度お試しください。");
     } finally {
       setConsultSending(false);
     }
@@ -153,10 +163,10 @@ export default function DiagnosisPage() {
         <div className="max-w-2xl mx-auto px-6 py-4">
           <h1 className="text-xl font-bold text-navy-800 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-lavender-500" />
-            業務効率化診断
+            {THEME_META.title}
           </h1>
           <p className="text-sm text-navy-500 mt-0.5">
-            約3分で、業務改善ポイントを分析します
+            {THEME_META.description}
           </p>
           <div className="mt-4">
             <StepProgress

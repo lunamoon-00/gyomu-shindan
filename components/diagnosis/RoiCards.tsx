@@ -12,9 +12,9 @@ interface RoiCardsProps {
 
 export function RoiCards({ data }: RoiCardsProps) {
   const items = [
-    { key: "conservative" as const, label: "慎重", color: "border-lavender-300 bg-lavender-50" },
-    { key: "base" as const, label: "標準", color: "border-navy-400 bg-navy-50" },
-    { key: "aggressive" as const, label: "積極", color: "border-navy-600 bg-navy-100" },
+    { key: "conservative" as const, label: "慎重", color: "border-slate-200 bg-slate-50" },
+    { key: "base" as const, label: "標準", color: "border-navy-500 bg-navy-50" },
+    { key: "aggressive" as const, label: "積極", color: "border-slate-200 bg-slate-50" },
   ];
 
   return (

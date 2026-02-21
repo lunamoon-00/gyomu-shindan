@@ -1,22 +1,20 @@
 import type { FormData } from "./types";
 import type { ApiResponse } from "./types";
+import { getUseMock } from "./config";
 
 const API_ENDPOINT = "/api/diagnosis";
 
 /**
- * 【GAS接続ポイント】
- * 診断データを送信する関数。
- * USE_MOCK を true にするとダミーレスポンスを返します。
- * 本番時は false にし、実際のAPIを呼び出してください。
- */
-const USE_MOCK = false;
-
-/**
- * 診断フォームの送信
- * @returns APIレスポンス（成功時は status: 'success'、失敗時は status: 'error'）
+ * 診断データを送信する関数
+ * NEXT_PUBLIC_USE_MOCK=true でモック、本番は false。
+ *
+ * 【拡張ポイント】
+ * - GAS API: realSubmit 内の fetch 先を環境変数で切り替え可能
+ * - 認証: ヘッダーに Authorization 等を追加
+ * - DB保存: API側で受け取り後の処理として実装
  */
 export async function submitDiagnosis(formData: FormData): Promise<ApiResponse> {
-  if (USE_MOCK) {
+  if (getUseMock()) {
     return mockSubmit(formData);
   }
   return realSubmit(formData);
@@ -36,7 +34,26 @@ async function mockSubmit(formData: FormData): Promise<ApiResponse> {
 }
 
 /**
+ * 想定外レスポンスかチェック
+ * status が success/error でない、または型が崩れている場合は error を返す
+ */
+function normalizeApiResponse(data: unknown): ApiResponse {
+  if (data && typeof data === "object" && "status" in data) {
+    const s = (data as { status: string }).status;
+    if (s === "success" || s === "error") {
+      return data as ApiResponse;
+    }
+  }
+  return {
+    status: "error",
+    message: "診断サーバーからの応答形式が正しくありません。",
+  };
+}
+
+/**
  * 実API送信（GAS経由）
+ * - res.ok 未満はエラーとして扱う
+ * - JSON解析失敗時もエラー
  */
 async function realSubmit(formData: FormData): Promise<ApiResponse> {
   const res = await fetch(API_ENDPOINT, {
@@ -44,6 +61,28 @@ async function realSubmit(formData: FormData): Promise<ApiResponse> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(formData),
   });
-  const data: ApiResponse = await res.json();
-  return data;
+
+  let text: string;
+  try {
+    text = await res.text();
+  } catch (err) {
+    throw new Error("応答の取得に失敗しました。");
+  }
+
+  if (!res.ok) {
+    throw new Error(
+      res.status >= 500
+        ? "サーバーエラーが発生しました。しばらくしてからお試しください。"
+        : "通信エラーが発生しました。もう一度お試しください。"
+    );
+  }
+
+  let data: unknown;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error("応答の解析に失敗しました。");
+  }
+
+  return normalizeApiResponse(data);
 }
