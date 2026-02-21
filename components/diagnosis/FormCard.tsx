@@ -16,8 +16,8 @@ interface FormCardProps {
   /** 説明文 */
   description?: string;
   /** アニメーション用 */
-  initial?: object;
-  animate?: object;
+  initial?: { opacity?: number; y?: number };
+  animate?: { opacity?: number; y?: number };
   ref?: (el: HTMLDivElement | null) => void;
 }
 
