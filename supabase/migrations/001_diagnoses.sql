@@ -1,5 +1,4 @@
--- 診断結果保存用テーブル（Supabase SQL Editor で実行、または supabase db push）
--- 詳細: docs/DB_AND_BACKEND_GUIDE.md
+-- diagnoses table for business efficiency diagnosis tool
 
 CREATE TABLE IF NOT EXISTS diagnoses (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -26,5 +25,4 @@ CREATE INDEX IF NOT EXISTS idx_diagnoses_created_at ON diagnoses(created_at);
 
 ALTER TABLE diagnoses ENABLE ROW LEVEL SECURITY;
 
--- サービスロールは RLS をバイパスするため、API Route からの insert は可能
--- 一般ユーザーがクライアントから直接テーブルにアクセスしない設計
+-- RLS enabled; service role bypasses for API insert
