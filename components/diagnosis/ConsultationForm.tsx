@@ -51,7 +51,10 @@ export function ConsultationForm({
       <input
         type="email"
         value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        onChange={(e) => {
+          setEmail(e.target.value);
+          setLocalError(null);
+        }}
         placeholder="example@company.co.jp"
         className="w-full px-4 py-3 rounded-xl border border-lavender-300 focus:border-navy-500 focus:ring-2 focus:ring-navy-500/20 outline-none"
       />
